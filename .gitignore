@@ -1,0 +1,6 @@
+.DS_Store
+downloads
+path
+venv
+client_secrets.json
+credentials.json
