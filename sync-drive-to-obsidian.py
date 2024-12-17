@@ -65,6 +65,13 @@ def download_files(drive, files, output_dir):
         try:
             safe_filename = sanitize_filename(file['title'])
             file_path = os.path.join(output_dir, f"{safe_filename}.docx")
+
+            # Skip if file already exists and has content
+            if os.path.exists(file_path) and os.path.getsize(file_path) > 0:
+                print(f"Skipping existing file: {file['title']}")
+                downloaded_files.append(file_path)
+                continue
+
             print(f"Downloading: {file['title']} -> {file_path}")
             file.GetContentFile(file_path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
 
