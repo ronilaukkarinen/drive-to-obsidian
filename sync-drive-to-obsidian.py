@@ -60,20 +60,46 @@ def sanitize_filename(filename):
 
 def download_files(drive, files, output_dir):
     os.makedirs(output_dir, exist_ok=True)
+    downloaded_files = []
     for file in files:
-        safe_filename = sanitize_filename(file['title'])
-        file_path = os.path.join(output_dir, f"{safe_filename}.docx")
-        print(f"Downloading: {file['title']} -> {file_path}")
-        file.GetContentFile(file_path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        try:
+            safe_filename = sanitize_filename(file['title'])
+            file_path = os.path.join(output_dir, f"{safe_filename}.docx")
+            print(f"Downloading: {file['title']} -> {file_path}")
+            file.GetContentFile(file_path, mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+            # Verify file size
+            if os.path.getsize(file_path) > 0:
+                downloaded_files.append(file_path)
+            else:
+                print(f"Warning: Downloaded file {file_path} is empty")
+                os.remove(file_path)
+        except Exception as e:
+            print(f"Error downloading {file['title']}: {str(e)}")
+    return downloaded_files
 
 # Convert DOCX to Markdown
 def convert_to_md(input_dir, output_dir):
+    converted_files = []
     for filename in os.listdir(input_dir):
         if filename.endswith(".docx"):
-            input_path = os.path.join(input_dir, filename)
-            output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.md")
-            print(f"Converting: {input_path} -> {output_path}")
-            subprocess.run(["pandoc", input_path, "-o", output_path], check=True)
+            try:
+                input_path = os.path.join(input_dir, filename)
+                output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.md")
+                print(f"Converting: {input_path} -> {output_path}")
+                result = subprocess.run(
+                    ["pandoc", input_path, "-o", output_path],
+                    check=False,  # Don't raise exception
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    converted_files.append(output_path)
+                else:
+                    print(f"Error converting {filename}: {result.stderr}")
+            except Exception as e:
+                print(f"Error processing {filename}: {str(e)}")
+    return converted_files
 
 # Sync files to Obsidian vault
 def sync_to_obsidian(output_dir, vault_dir):
@@ -91,9 +117,15 @@ if __name__ == "__main__":
     files = fetch_files(drive, TARGET_FILES)
 
     if files:
-        download_files(drive, files, OUTPUT_DIR)
-        convert_to_md(OUTPUT_DIR, OUTPUT_DIR)
-        sync_to_obsidian(OUTPUT_DIR, VAULT_DIR)
-        print("Sync completed successfully!")
+        downloaded_files = download_files(drive, files, OUTPUT_DIR)
+        if downloaded_files:
+            converted_files = convert_to_md(OUTPUT_DIR, OUTPUT_DIR)
+            if converted_files:
+                sync_to_obsidian(OUTPUT_DIR, VAULT_DIR)
+                print("Sync completed successfully!")
+            else:
+                print("No files were successfully converted to markdown.")
+        else:
+            print("No files were successfully downloaded.")
     else:
         print("No matching files found.")
