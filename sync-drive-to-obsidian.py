@@ -136,17 +136,25 @@ def improve_markdown_formatting(markdown_content):
         return markdown_content
 
 # Convert DOCX to Markdown
-def convert_to_md(input_dir, output_dir):
+def convert_to_md(input_dir, vault_dir):
     converted_files = []
     for filename in os.listdir(input_dir):
         if filename.endswith(".docx"):
             try:
                 input_path = os.path.join(input_dir, filename)
-                # Remove .docx before creating .md filename
-                base_name = os.path.splitext(filename)[0]
-                md_filename = f"{base_name}.md"
-                output_path = os.path.join(output_dir, md_filename)
-                print(f"Converting: {input_path} -> {output_path}")
+                # Clean up the filename before creating md version
+                clean_name = sanitize_filename(os.path.splitext(filename)[0])
+                md_filename = f"{clean_name}.md"
+                final_output_path = os.path.join(vault_dir, md_filename)
+
+                # Check if file already exists in vault
+                if os.path.exists(final_output_path):
+                    print(f"Skipping existing file in vault: {md_filename}")
+                    os.remove(input_path)  # Remove the docx file
+                    continue
+
+                print(f"Converting: {filename} -> {md_filename}")
+                temp_output_path = os.path.join(input_dir, md_filename)
 
                 result = subprocess.run(
                     ["pandoc",
@@ -155,40 +163,34 @@ def convert_to_md(input_dir, output_dir):
                      "-t", "markdown_strict+pipe_tables+yaml_metadata_block",
                      "--wrap=none",
                      "--standalone",
-                     "-o", output_path],
+                     "-o", temp_output_path],
                     check=False,
                     capture_output=True,
                     text=True
                 )
 
                 if result.returncode == 0:
-                    # Read the pandoc-converted markdown
-                    with open(output_path, 'r', encoding='utf-8') as f:
+                    with open(temp_output_path, 'r', encoding='utf-8') as f:
                         content = f.read()
 
-                    # Improve formatting using GPT-4
                     print(f"Improving markdown formatting for: {md_filename}")
                     improved_content = improve_markdown_formatting(content)
 
-                    # Write improved content back to file, overwriting the original
-                    with open(output_path, 'w', encoding='utf-8') as f:
+                    # Write directly to Obsidian vault
+                    with open(final_output_path, 'w', encoding='utf-8') as f:
                         f.write(improved_content)
 
-                    converted_files.append(output_path)
+                    # Clean up temporary and source files
+                    os.remove(temp_output_path)  # Remove temporary md file
+                    os.remove(input_path)        # Remove original docx file
+
+                    converted_files.append(final_output_path)
+                    print(f"Moved to Obsidian vault: {md_filename}")
                 else:
                     print(f"Error converting {filename}: {result.stderr}")
             except Exception as e:
                 print(f"Error processing {filename}: {str(e)}")
     return converted_files
-
-# Sync files to Obsidian vault
-def sync_to_obsidian(output_dir, vault_dir):
-    for filename in os.listdir(output_dir):
-        if filename.endswith(".md"):
-            source_path = os.path.join(output_dir, filename)
-            target_path = os.path.join(vault_dir, filename)
-            print(f"Syncing: {source_path} -> {target_path}")
-            os.replace(source_path, target_path)
 
 # Main execution
 if __name__ == "__main__":
@@ -199,9 +201,8 @@ if __name__ == "__main__":
     if files:
         downloaded_files = download_files(drive, files, OUTPUT_DIR)
         if downloaded_files:
-            converted_files = convert_to_md(OUTPUT_DIR, OUTPUT_DIR)
+            converted_files = convert_to_md(OUTPUT_DIR, VAULT_DIR)
             if converted_files:
-                sync_to_obsidian(OUTPUT_DIR, VAULT_DIR)
                 print("Sync completed successfully!")
             else:
                 print("No files were successfully converted to markdown.")
