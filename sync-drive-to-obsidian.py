@@ -51,11 +51,19 @@ def fetch_files(drive, titles):
 
 # Download files as DOCX
 def sanitize_filename(filename):
-    # Remove or replace invalid characters
-    # Replace colons and registered trademark symbol
-    filename = filename.replace(':', '-').replace('®', '')
+    # Handle special prefixes
+    for prefix in ["Transcript:", "AI Notes"]:
+        if filename.startswith(prefix):
+            # Remove the prefix and any leading/trailing whitespace
+            base_name = filename[len(prefix):].strip()
+            # Format as "Name (Type)"
+            type_name = "Transcript" if prefix == "Transcript:" else "AI Notes"
+            filename = f"{base_name} ({type_name})"
+
     # Remove or replace any other invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '-', filename)
+    # Remove registered trademark symbol
+    filename = filename.replace('®', '')
     return filename.strip()
 
 def download_files(drive, files, output_dir):
@@ -94,12 +102,21 @@ def convert_to_md(input_dir, output_dir):
                 input_path = os.path.join(input_dir, filename)
                 output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.md")
                 print(f"Converting: {input_path} -> {output_path}")
+
+                # Add pandoc options for better Markdown formatting
                 result = subprocess.run(
-                    ["pandoc", input_path, "-o", output_path],
-                    check=False,  # Don't raise exception
+                    ["pandoc",
+                     input_path,
+                     "-f", "docx",
+                     "-t", "markdown_strict+pipe_tables+yaml_metadata_block",
+                     "--wrap=none",
+                     "--standalone",
+                     "-o", output_path],
+                    check=False,
                     capture_output=True,
                     text=True
                 )
+
                 if result.returncode == 0:
                     converted_files.append(output_path)
                 else:
