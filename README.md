@@ -16,7 +16,7 @@ Sync Google Drive docs to Obsidian.
 ```bash
 python3 -m venv venv
 source venv/bin/activate
-python3 -m pip install pydrive2 python-dotenv
+python3 -m pip install pydrive2 python-dotenv openai
 ```
 
 3. Install Pandoc
@@ -41,7 +41,7 @@ python3 sync-drive-to-obsidian.py
 2. Install dependencies:
 ```bash
 pip install pydrive2 python-dotenv
-sudo apt install pandoc
+sudo apt install pandoc openai
 ```
 
 3. Follow steps 4-5 from macOS instructions

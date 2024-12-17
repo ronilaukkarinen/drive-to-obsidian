@@ -4,6 +4,8 @@ from pydrive2.drive import GoogleDrive
 import subprocess
 from dotenv import load_dotenv
 import re
+import openai
+from openai import OpenAI
 
 # Load environment variables (API keys, paths)
 load_dotenv()
@@ -66,6 +68,9 @@ def sanitize_filename(filename):
     # Remove leading hyphens and spaces
     filename = re.sub(r'^[\s-]+', '', filename)
 
+    # Add spaces around dashes that don't have them
+    filename = re.sub(r'(?<!\s)-(?!\s)', ' - ', filename)
+
     # Remove or replace any other invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '-', filename)
     # Remove registered trademark symbol
@@ -100,6 +105,36 @@ def download_files(drive, files, output_dir):
             print(f"Error downloading {file['title']}: {str(e)}")
     return downloaded_files
 
+# Improve markdown formatting
+def improve_markdown_formatting(markdown_content):
+    try:
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+        prompt = """Please improve this markdown formatting. Make sure to:
+        1. Use proper headers (# for main title, ## for sections, etc.), do not capitalize each word, only capitalize the first letter of each sentence, add line breaks after headings
+        2. Format lists correctly
+        3. Properly format code blocks if any
+        4. Keep tables well-formatted
+        5. Maintain proper spacing between sections
+        Here's the content to improve:
+
+        """
+
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": "You are a markdown formatting expert. Return only the formatted markdown without any explanations."},
+                {"role": "user", "content": prompt + markdown_content}
+            ],
+            temperature=0,
+            max_tokens=13000
+        )
+
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"Error improving markdown: {str(e)}")
+        return markdown_content
+
 # Convert DOCX to Markdown
 def convert_to_md(input_dir, output_dir):
     converted_files = []
@@ -107,10 +142,12 @@ def convert_to_md(input_dir, output_dir):
         if filename.endswith(".docx"):
             try:
                 input_path = os.path.join(input_dir, filename)
-                output_path = os.path.join(output_dir, f"{os.path.splitext(filename)[0]}.md")
+                # Remove .docx before creating .md filename
+                base_name = os.path.splitext(filename)[0]
+                md_filename = f"{base_name}.md"
+                output_path = os.path.join(output_dir, md_filename)
                 print(f"Converting: {input_path} -> {output_path}")
 
-                # Add pandoc options for better Markdown formatting
                 result = subprocess.run(
                     ["pandoc",
                      input_path,
@@ -125,6 +162,18 @@ def convert_to_md(input_dir, output_dir):
                 )
 
                 if result.returncode == 0:
+                    # Read the pandoc-converted markdown
+                    with open(output_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+
+                    # Improve formatting using GPT-4
+                    print(f"Improving markdown formatting for: {md_filename}")
+                    improved_content = improve_markdown_formatting(content)
+
+                    # Write improved content back to file, overwriting the original
+                    with open(output_path, 'w', encoding='utf-8') as f:
+                        f.write(improved_content)
+
                     converted_files.append(output_path)
                 else:
                     print(f"Error converting {filename}: {result.stderr}")

@@ -4,3 +4,4 @@ path
 venv
 client_secrets.json
 credentials.json
+.env
