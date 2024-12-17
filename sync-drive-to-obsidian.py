@@ -60,10 +60,17 @@ def sanitize_filename(filename):
             type_name = "Transcript" if prefix == "Transcript:" else "AI Notes"
             filename = f"{base_name} ({type_name})"
 
+    # Remove .docx extension if it appears in the middle of the filename
+    filename = filename.replace('.docx', '')
+
+    # Remove leading hyphens and spaces
+    filename = re.sub(r'^[\s-]+', '', filename)
+
     # Remove or replace any other invalid characters
     filename = re.sub(r'[<>:"/\\|?*]', '-', filename)
     # Remove registered trademark symbol
     filename = filename.replace('®', '')
+
     return filename.strip()
 
 def download_files(drive, files, output_dir):
