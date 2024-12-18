@@ -23,7 +23,28 @@ def authenticate_drive():
     gauth = GoogleAuth()
     # Add specific scope for private files
     gauth.settings['scope'] = ['https://www.googleapis.com/auth/drive']
-    gauth.LocalWebserverAuth()  # Authenticate via browser
+
+    # Try to load saved credentials
+    gauth.LoadCredentialsFile("mycreds.txt")
+
+    if gauth.credentials is None:
+        # If no credentials are found, get them from the command line
+        gauth.GetFlow()
+        auth_url = gauth.GetAuthUrl()
+        print("\n\nGo to the following URL in a browser on your local machine:")
+        print(auth_url)
+        code = input('\nEnter the authentication code: ')
+        gauth.Auth(code)
+        # Save the credentials for future use
+        gauth.SaveCredentialsFile("mycreds.txt")
+    elif gauth.access_token_expired:
+        # Refresh them if expired
+        gauth.Refresh()
+        gauth.SaveCredentialsFile("mycreds.txt")
+    else:
+        # Initialize the saved creds
+        gauth.Authorize()
+
     return GoogleDrive(gauth)
 
 # Fetch files from Google Drive
