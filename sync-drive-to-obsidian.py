@@ -14,8 +14,9 @@ load_dotenv()
 OUTPUT_DIR = "./downloads"
 VAULT_DIR = os.getenv("OBSIDIAN_VAULT_DIR", "/Users/rolle/Documents/Brain Dump/timeOS")  # Path to Obsidian vault
 
-# Titles to sync
-TARGET_FILES = ["Transcript:", "AI Notes"]
+# Make filtering optional through env variables
+FILTER_BY_PREFIX = os.getenv("FILTER_BY_PREFIX", "false").lower() == "true"
+TARGET_FILES = os.getenv("TARGET_FILES", "Transcript:,AI Notes").split(",") if FILTER_BY_PREFIX else []
 
 # Authenticate with Google Drive
 def authenticate_drive():
@@ -47,9 +48,12 @@ def fetch_files(drive, titles):
         print(f"MimeType: {f.get('mimeType', 'Unknown')}")
         print("---")
 
-    # Filter files based on titles
-    matching_files = [f for f in file_list if any(f['title'].startswith(title) for title in titles)]
-    return matching_files
+    # Filter files based on titles only if FILTER_BY_PREFIX is true
+    if FILTER_BY_PREFIX and titles:
+        matching_files = [f for f in file_list if any(f['title'].startswith(title) for title in titles)]
+        return matching_files
+
+    return file_list
 
 # Download files as DOCX
 def sanitize_filename(filename):
