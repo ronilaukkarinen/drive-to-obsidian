@@ -40,8 +40,8 @@ python3 sync-drive-to-obsidian.py
 
 2. Install dependencies:
 ```bash
-pip install pydrive2 python-dotenv
-sudo apt install pandoc openai
+pip install pydrive2 python-dotenv openai
+sudo apt install pandoc
 ```
 
 3. Follow steps 4-5 from macOS instructions
