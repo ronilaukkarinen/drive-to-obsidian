@@ -58,12 +58,12 @@ def fetch_files(drive, titles):
 # Download files as DOCX
 def sanitize_filename(filename):
     # Handle special prefixes
-    for prefix in ["Transcript:", "AI Notes"]:
+    for prefix in ["Transcript:", "AI Notes", "Muistiinpanot:"]:  # Added Muistiinpanot: to prefixes
         if filename.startswith(prefix):
             # Remove the prefix and any leading/trailing whitespace
             base_name = filename[len(prefix):].strip()
             # Format as "Name (Type)"
-            type_name = "Transcript" if prefix == "Transcript:" else "AI Notes"
+            type_name = "Transcript" if prefix == "Transcript:" else "AI Notes" if prefix == "AI Notes" else "Notes"
             filename = f"{base_name} ({type_name})"
 
     # Remove .docx extension if it appears in the middle of the filename
@@ -115,11 +115,10 @@ def improve_markdown_formatting(markdown_content):
         client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 
         prompt = """Please improve this markdown formatting. Make sure to:
-        1. Use proper headers (# for main title, ## for sections, etc.), do not capitalize each word, only capitalize the first letter of each sentence, add line breaks after headings
+        1. Use proper headers (# for main title, ## for sections, etc.), do not capitalize each word, only capitalize the first letter of each sentence
         2. Format lists correctly
         3. Properly format code blocks if any
         4. Keep tables well-formatted
-        5. Maintain proper spacing between sections
         Here's the content to improve:
 
         """
